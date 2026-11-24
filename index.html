@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Palavra do Dia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;600&family=Fraunces:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/*
+VOICE: um jogo de palavras comum até virar o pedido; frio e seco, nada de cartão
+IDEA: clone do Termo com número do dia secreto + palavra que se decodifica
+PICTURE: o tabuleiro; no fim, o número gigante e depois o loop do rosto dela
+COLOUR and TYPE: grafite escuro, verde/amarelo do jogo; Mitr + Fraunces
+LAYOUT: coluna única, feito pra celular na mão dela
+*/
+:root{color-scheme:dark;--bg:#121214;--ink:#f2f2f2;--muted:#8a8a91;--tile:#3a3a3f;--empty:#2a2a2e;--green:#3aa394;--yellow:#d3ad69;--gray:#312a2c;--key:#4c4347}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+@supports (height:100dvh){html,body{height:100dvh}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "Mitr",system-ui,sans-serif;overflow:hidden;display:flex;flex-direction:column;align-items:center;user-select:none;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{width:100%;max-width:520px;display:flex;align-items:center;justify-content:center;padding:14px 16px 6px;position:relative}
+h1{margin:0;font-weight:600;font-size:30px;letter-spacing:.04em}
+.sub{color:var(--muted);font-size:13px;text-align:center;margin-bottom:8px;min-height:18px}
+#board{display:grid;gap:6px;padding:8px;margin:auto 0}
+.row{display:grid;gap:6px}
+.tile{width:var(--t);height:var(--t);border-radius:6px;background:var(--empty);border:2px solid var(--tile);display:grid;place-items:center;font-weight:600;font-size:calc(var(--t)*.55);text-transform:uppercase}
+.tile.filled{border-color:#6b6b72;animation:pop .1s}
+.tile.green{background:var(--green);border-color:var(--green);color:#fff}
+.tile.yellow{background:var(--yellow);border-color:var(--yellow)}
+.tile.gray{background:var(--gray);border-color:var(--gray);color:#b7b0b2}
+.tile.flip{animation:flip .5s ease}
+.tile.dance{animation:dance .5s ease}
+.tile.chaos{color:#6d6567}
+.row.shake{animation:shake .4s}
+@keyframes pop{50%{transform:scale(1.1)}}
+@keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+@keyframes dance{40%{transform:translateY(-14px)}70%{transform:translateY(3px)}}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+#kb{width:100%;max-width:520px;padding:8px 6px 12px;display:grid;gap:7px}
+.kr{display:flex;gap:5px;justify-content:center}
+.k{flex:1;max-width:44px;height:56px;border:0;border-radius:6px;background:var(--key);color:var(--ink);font:600 17px "Mitr",sans-serif;cursor:pointer;display:grid;place-items:center}
+.k.wide{max-width:72px;flex:1.6;font-size:13px}
+.k.green{background:var(--green)}.k.yellow{background:var(--yellow)}.k.gray{background:#241f20;color:#6d6567}
+.k:focus-visible{outline:2px solid #fff}
+.k,.tile{touch-action:manipulation;-webkit-user-select:none;-webkit-touch-callout:none}
+@media (max-height:620px){.k{height:46px}#kb{gap:5px}header{padding-top:8px}h1{font-size:26px}}
+#toast{white-space:nowrap;text-align:center;position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#f2f2f2;color:#121214;padding:10px 16px;border-radius:8px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+#toast.on{opacity:1}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;place-items:center;padding:16px;z-index:5}
+.modal.on{display:grid}
+.card{background:#1c1c20;border-radius:14px;padding:24px 22px;width:100%;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.card h2{margin:0 0 14px;font-size:15px;color:var(--muted);font-weight:400}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:18px}
+.stats b{display:block;font-size:30px;line-height:1}
+.stats span{font-size:12px;color:var(--muted)}
+.dist{display:grid;gap:4px;margin-bottom:20px;text-align:left}
+.bar{display:flex;align-items:center;gap:6px;font-size:13px}
+.bar i{font-style:normal;background:#3a3a3f;padding:0 8px;min-width:24px;text-align:right;border-radius:3px}
+.bar i.hi{background:var(--green)}
+.next{font-size:13px;color:var(--muted)}
+.hintbar{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-size:14px;margin-top:-2px}
+.hint{background:#1f1f23;border:1px solid var(--tile);border-radius:999px;padding:4px 12px;color:var(--yellow)}
+#hint2{display:none}
+#timer{font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);min-width:3.2em;text-align:center}
+#timer.low{color:#e36a6a;animation:pop .5s infinite}
+#clock{font-size:34px;font-weight:600;letter-spacing:.05em;font-variant-numeric:tabular-nums}
+/* revelação do número */
+#reveal{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;z-index:8}
+#reveal.on{display:flex}
+#count{font:600 clamp(80px,28vw,190px)/1 "Mitr",sans-serif;color:var(--green);font-variant-numeric:tabular-nums;letter-spacing:.01em;opacity:0;transform:scale(.6);transition:opacity .5s,transform .6s cubic-bezier(.2,.8,.25,1)}
+#count.on{opacity:1;transform:none}
+#rlabel{margin-top:4px;font-size:13px;color:var(--muted);letter-spacing:.42em;text-transform:uppercase;opacity:0;transition:opacity .7s}
+.rblock{margin-top:30px;display:grid;gap:14px;max-width:18em}
+.rline{text-wrap:balance;font:400 clamp(18px,5.2vw,25px)/1.4 "Fraunces",serif;color:var(--ink);opacity:0;transform:translateY(10px);transition:opacity 1.1s,transform 1.1s}
+.rline.on{opacity:1;transform:none}
+/* portão (ele toca antes de entregar) + loop da reação */
+.full{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;z-index:10}
+.full.on{display:flex}
+#gate h3{font:400 16px "Mitr",sans-serif;color:var(--muted);margin:0 0 22px;max-width:16em;line-height:1.5}
+#gate button{font:600 20px "Mitr",sans-serif;border:0;border-radius:999px;padding:16px 40px;min-height:52px;background:var(--green);color:#fff;cursor:pointer}
+#gatehint{margin-top:18px;font-size:12px;color:#55555c;max-width:18em}
+#gateready{margin-top:10px;font-size:11px;color:#55555c;min-height:1.3em;font-variant-numeric:tabular-nums}
+#gateerr{display:none;margin-top:16px;font-size:14px;color:#e36a6a;max-width:20em}
+#gateskip{display:none;margin-top:14px;font-size:13px;color:var(--muted);background:none;border:0;text-decoration:underline;cursor:pointer}
+#loopvid{width:100%;max-width:360px;aspect-ratio:3/4;object-fit:cover;border-radius:16px;background:#000;transform:scaleX(-1)}
+#loopcap{font:italic 400 clamp(18px,5vw,24px)/1.3 "Fraunces",serif;margin:18px 0 20px}
+#loop{justify-content:flex-start;overflow-y:auto;padding-top:max(20px,env(safe-area-inset-top))}
+#loopvid{max-height:38vh;width:auto;max-width:100%}
+#saves{display:grid;gap:8px;width:100%;max-width:400px}
+.vrow{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;text-align:left;font-size:13px;color:var(--muted)}
+.vbtn{font:600 13px "Mitr",sans-serif;text-decoration:none;border:1px solid var(--tile);color:var(--ink);border-radius:999px;padding:10px 12px;min-height:44px;display:inline-flex;align-items:center;white-space:nowrap}
+.vbtn.wait{opacity:.45;pointer-events:none}
+#savestatus{white-space:pre-line;margin-top:14px;font-size:12px;color:var(--muted);max-width:400px;min-height:1.4em}
+.saves{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.saves a{display:none;font:600 14px "Mitr",sans-serif;text-decoration:none;border:1px solid var(--tile);color:var(--ink);border-radius:999px;padding:11px 20px;min-height:44px;display:none;align-items:center}
+#rotate{display:none}
+@media (orientation:landscape) and (max-height:500px){#rotate{display:flex;position:fixed;inset:0;z-index:20;background:var(--bg);align-items:center;justify-content:center;font-size:18px;color:var(--muted);text-align:center;padding:20px}}
+@media (prefers-reduced-motion:reduce){.tile.flip,.tile.dance{animation:none}#count,.rline{transition:opacity .4s}}
+</style>
+</head>
+<body>
+<header><h1 id="title">PALAVRA</h1></header>
+<div class="sub" id="sub">Nº <span id="num">—</span> · adivinhe em 6 tentativas</div>
+<div class="hintbar" id="hintbar"><span class="hint" id="hint1"></span><span class="hint" id="hint2"></span><span id="timer"></span></div>
+<div id="board"></div>
+<div id="kb"></div>
+<div id="toast"></div>
+<div id="rotate">📱 gire o celular na vertical</div>
+
+<div class="modal" id="stats"><div class="card">
+  <h2>Estatísticas</h2>
+  <div class="stats">
+    <div><b>1</b><span>jogos</span></div>
+    <div><b id="pct">100</b><span>% vitórias</span></div>
+    <div><b id="seq">1</b><span>sequência</span></div>
+    <div><b id="best">1</b><span>melhor</span></div>
+  </div>
+  <div class="dist" id="dist"></div>
+  <div class="next">palavra bônus liberada em</div>
+  <div id="clock">00:00:15</div>
+</div></div>
+
+<div id="reveal">
+  <div id="count">0</div>
+  <div id="rlabel">dias</div>
+  <div class="rblock">
+    <div class="rline" id="l1"></div>
+    <div class="rline" id="l2"></div>
+    <div class="rline" id="l3"></div>
+  </div>
+</div>
+
+<div class="full" id="gate">
+  <!-- ELE toca aqui e permite câmera + microfone; depois entrega o celular. Texto neutro de propósito. -->
+  <h3>Palavra do dia</h3>
+  <button id="gatebtn">▶ jogar</button>
+  <div id="gateready"></div>
+  <div id="gatehint">permita o acesso quando o celular pedir</div>
+  <div id="gateerr"></div>
+  <button id="gateskip">jogar sem gravar</button>
+</div>
+
+<div class="full" id="loop">
+  <video id="loopvid" playsinline muted loop autoplay></video>
+  <div id="loopcap">e essa foi a sua cara 🥹</div>
+  <div id="saves"></div>
+  <div id="savestatus"></div>
+</div>
+
+<script>
+{
+// ===================== CONFIGURAÇÃO =====================
+const CONFIG = {
+  palavra: "PRAIA",          // palavra que ela adivinha (5 letras, sem acento)
+  nome: "Leticia",
+  dica: "verão ☀️",           // dica que aparece em cima do tabuleiro
+  tempo: 150,                // segundos pra adivinhar (2:30); começa na 1ª letra que ela digitar
+  dicaExtra: "lugar com areia 🏖️", // segunda dica...
+  dicaExtraEm: 60,           // ...aparece quando faltar esse tanto de segundos
+  contagem: 15,              // segundos da contagem antes do bônus
+  bonus: ["VOCÊ","QUER","NAMORAR","COMIGO?"],
+  metISO: "2026-06-24",      // dia em que vocês se conheceram (AAAA-MM-DD)
+  rev1: "não é o número do jogo.",
+  rev2: "são os dias desde 24 de junho — o dia em que te conheci.",
+  rev3: "cinco meses exatos, hoje. contei todos.",
+  rev3outroDia: "contei todos.",   // usado se não for exatamente 5 meses (24/11)
+  cue:  "(pode levantar o olho agora)",
+  chaosMs: 2800,             // tempo de caos ilegível antes de travar
+  lockStep: 230,             // intervalo entre cada quadrado travar em verde
+  loopDelay: 11000,          // espera depois do pedido antes de mostrar o loop
+  musica: {
+    arquivo: "m.m4a",        // trecho de "Lady (Hear Me Tonight)" — Modjo, do segundo 70 ao 125 da faixa
+    inicioArquivo: 70,       // o arquivo começa nesse segundo da música
+    entraEm: 73.7,           // vídeos completos: instrumental entra aqui (~quando aparecem as estatísticas)
+    noNumero: 89.3,          // segundo da música no instante em que o número aparece
+                             // => "I feel love for the first time" quando as letras travam,
+                             //    "I can tell by the look in your eyes" quando aparece "(pode levantar o olho agora)"
+    volume: 0.5,
+    volumeAoVivo: 0.3,       // volume da música tocando no celular (0 a 1) — baixinho pra ouvir o "sim"
+    versoes: false,          // false = não gera versões "com música" dos vídeos
+    tocarNoApp: false         // toca a música no celular (a partir das estatísticas)
+  },
+  drive: "https://script.google.com/macros/s/AKfycbyp_LLUbr36nZVNu4dXERsfGXmolLWCnuzo57i7aWuN53b2x0i5MAmtnE7pplzMpFysUg/exec",                 // URL do Google Apps Script (/exec). Com o script novo (ação "token") o celular envia DIRETO pro Drive; com o antigo, via script (lento). Vazio = não envia.
+  gravar: true               // true = tenta gravar a câmera (só em HTTPS/GitHub Pages)
+};
+// ?teste no fim do link pula direto pra contagem (sem câmera), pra testar.
+// ========================================================
+
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase();
+const WORD = norm(CONFIG.palavra), N = WORD.length, ROWS = 6;
+const GLY = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#@%&?".split("");
+const $ = id => document.getElementById(id);
+const board = $("board"), kb = $("kb");
+let row = 0, col = 0, grid = [], done = false, busy = false;
+const keyState = {};
+
+function sizeTiles(cols, rows){
+  const w = Math.min(window.innerWidth, 520) - 40;
+  const h = window.innerHeight - (window.innerHeight < 620 ? 330 : 365);
+  const t = Math.floor(Math.max(26, Math.min(62, (w - (cols-1)*6)/cols, (h - (rows-1)*6)/rows)));
+  board.style.setProperty("--t", t+"px");
+}
+function buildBoard(){
+  sizeTiles(N, ROWS);
+  board.innerHTML = Array.from({length:ROWS},()=>`<div class="row" style="grid-template-columns:repeat(${N},auto)">${'<div class="tile"></div>'.repeat(N)}</div>`).join("");
+  grid = [...board.children].map(r => [...r.children]);
+}
+const LAYOUT = ["QWERTYUIOP","ASDFGHJKL","⌫ZXCVBNM↵"];
+function buildKb(){
+  kb.innerHTML = LAYOUT.map(r => `<div class="kr">${[...r].map(c=>{
+    if(c==="↵") return `<button class="k wide" data-k="ENTER">ENTER</button>`;
+    if(c==="⌫") return `<button class="k wide" data-k="BACK" aria-label="apagar">⌫</button>`;
+    return `<button class="k" data-k="${c}">${c}</button>`;
+  }).join("")}</div>`).join("");
+}
+function toast(msg, ms=1400){
+  const t = $("toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast.h); toast.h = setTimeout(()=>t.classList.remove("on"), ms);
+}
+let left = CONFIG.tempo, timerIv = null;
+const mmss = v => Math.floor(v/60) + ":" + String(v%60).padStart(2,"0");
+function initHints(){
+  $("hint1").textContent = "dica: " + CONFIG.dica;
+  $("hint2").textContent = CONFIG.dicaExtra;
+  $("timer").textContent = "⏱ " + mmss(left);
+}
+function startTimer(){
+  if(timerIv || done) return;
+  timerIv = setInterval(()=>{
+    if(done){ stopTimer(); return; }
+    if(left > 0) left--;
+    $("timer").textContent = "⏱ " + mmss(left);
+    if(left === CONFIG.dicaExtraEm){ $("hint2").style.display = "inline"; toast("Dica extra: " + CONFIG.dicaExtra, 2000); }
+    $("timer").classList.toggle("low", left <= 15);
+    if(left <= 0 && !busy) timeUp();   // se uma linha estiver virando, espera ela terminar
+  }, 1000);
+}
+function stopTimer(){ clearInterval(timerIv); $("timer").classList.remove("low"); }
+function timeUp(){
+  done = true; stopTimer();
+  toast("Tempo esgotado! Era " + WORD, 2600);
+  setTimeout(()=>showStats(false), 2800);
+}
+function press(k){
+  if(done || busy) return;
+  startTimer(); if(!wl) keepAwake(); unlockMusic();
+  if(k==="ENTER") return submit();
+  if(k==="BACK"){ if(col>0){ col--; const t=grid[row][col]; t.textContent=""; t.classList.remove("filled"); } return; }
+  if(/^[A-Z]$/.test(k) && col<N){ const t=grid[row][col]; t.textContent=k; t.classList.add("filled"); col++; }
+}
+function score(guess){
+  const res = Array(N).fill("gray"), left = {};
+  for(let i=0;i<N;i++){ if(guess[i]===WORD[i]) res[i]="green"; else left[WORD[i]]=(left[WORD[i]]||0)+1; }
+  for(let i=0;i<N;i++){ if(res[i]!=="green" && left[guess[i]]){ res[i]="yellow"; left[guess[i]]--; } }
+  return res;
+}
+const RANK = {gray:1,yellow:2,green:3};
+function paintKey(ch, st){
+  if((RANK[keyState[ch]]||0) >= RANK[st]) return;
+  keyState[ch] = st;
+  const b = kb.querySelector(`[data-k="${ch}"]`); if(b){ b.classList.remove("gray","yellow","green"); b.classList.add(st); }
+}
+function submit(){
+  if(col<N){ board.children[row].classList.add("shake"); setTimeout(()=>board.children[row].classList.remove("shake"),400); toast("Letras insuficientes"); return; }
+  const guess = grid[row].map(t=>t.textContent).join("");
+  const res = score(guess); busy = true;
+  grid[row].forEach((t,i)=>{
+    setTimeout(()=>{ t.classList.add("flip"); setTimeout(()=>{ t.classList.add(res[i]); paintKey(guess[i],res[i]); },250); }, i*280);
+  });
+  const end = N*280 + 350;
+  setTimeout(()=>{
+    busy = false;
+    if(guess===WORD){
+      done = true; stopTimer();
+      toast(["Genial!","Magnífico!","Impressionante!","Extraordinário!","Fenomenal!","Ufa!"][row], 1800);
+      grid[row].forEach((t,i)=>setTimeout(()=>t.classList.add("dance"), i*100));
+      setTimeout(()=>showStats(true), 2200);
+    } else if(row===ROWS-1){
+      done = true; stopTimer(); toast(WORD, 2500); setTimeout(()=>showStats(false), 2600);
+    } else { row++; col=0; if(left <= 0 && timerIv) timeUp(); }
+  }, end);
+}
+// ---------- música ao vivo no app ----------
+const bgm = new Audio(); bgm.preload = "auto"; bgm.setAttribute("playsinline", ""); if(CONFIG.musica.tocarNoApp) bgm.src = CONFIG.musica.arquivo;
+let bgmReady = false, musT0 = 0, musPos0 = 0;   // quando começou a tocar e de que ponto do arquivo
+let actx = null, gainN = null;
+let graphBuilt = false;
+let musBlob = null, unlockP = null;   // música inteira baixada no portão (blob) + o play de desbloqueio
+function unlockMusic(){ // iPhone só deixa tocar som depois de um toque: prepara tudo sem fazer barulho
+  if(bgmReady || !CONFIG.musica.tocarNoApp) return;
+  if(!graphBuilt){
+    graphBuilt = true;
+    try{ if(navigator.audioSession) navigator.audioSession.type = "play-and-record"; }catch(e){}
+    // volume de verdade no iPhone só via Web Audio (o volume do <audio> é ignorado no iOS)
+    try{
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = actx.createMediaElementSource(bgm);
+      gainN = actx.createGain(); gainN.gain.value = 0;
+      src.connect(gainN); gainN.connect(actx.destination);
+    }catch(e){ actx = null; gainN = null; }
+  }
+  try{ actx && actx.resume().catch(()=>{}); }catch(e){}
+  if(musT0) return;
+  bgm.muted = true;
+  const p = bgm.play();
+  if(p && p.then) unlockP = p.then(()=>{ bgmReady = true; if(!musT0) bgm.pause(); bgm.muted = false; }).catch(()=>{ bgm.muted = false; });
+}
+function startMusic(){
+  if(!CONFIG.musica.tocarNoApp || musT0) return;
+  const M = CONFIG.musica;
+  try{
+    if(actx && actx.state !== "running") actx.resume().catch(()=>{});
+    bgm.muted = false;
+    if(gainN){ const t = actx.currentTime; gainN.gain.cancelScheduledValues(t); gainN.gain.setValueAtTime(0, t); gainN.gain.linearRampToValueAtTime(M.volumeAoVivo, t + 3); }
+    else bgm.volume = M.volumeAoVivo;
+    bgm.currentTime = M.entraEm - M.inicioArquivo;
+    musPos0 = bgm.currentTime; musT0 = performance.now();
+    const p = bgm.play(); if(p && p.catch) p.catch(()=>{ musT0 = 0; });
+  }catch(e){ musT0 = 0; }
+}
+function syncMusic(){ // no número: garante que a música está no ponto exato (clímax no pedido)
+  if(!musT0 || bgm.paused) return;
+  const M = CONFIG.musica, alvo = M.noNumero - M.inicioArquivo;
+  if(Math.abs(bgm.currentTime - alvo) > 0.35){ bgm.currentTime = alvo; }
+}
+
+function showStats(win){
+  $("num").textContent = DAYS = daysSince(CONFIG.metISO);
+  startMusic();
+  $("pct").textContent = win ? 100 : 0;
+  $("seq").textContent = win ? 1 : 0;
+  $("best").textContent = win ? 1 : 0;
+  $("dist").innerHTML = [1,2,3,4,5,6].map(n=>{
+    const hit = win && n===row+1;
+    return `<div class="bar">${n}<i class="${hit?'hi':''}" style="width:${hit?100:8}%">${hit?1:0}</i></div>`;
+  }).join("");
+  $("stats").classList.add("on");
+  let s = CONFIG.contagem;
+  const fmt = v => "00:00:" + String(v).padStart(2,"0");
+  $("clock").textContent = fmt(s);
+  const iv = setInterval(()=>{
+    s--; $("clock").textContent = fmt(Math.max(s,0));
+    if(s<=0){ clearInterval(iv); setTimeout(showNumber, 600); }
+  }, 1000);
+}
+
+// ---------- revelação do número ----------
+function daysSince(iso){
+  const p = iso.split("-").map(Number);
+  const start = new Date(p[0], p[1]-1, p[2]);
+  const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.round((today - start)/86400000));
+}
+let DAYS = daysSince(CONFIG.metISO);
+$("num").textContent = DAYS;
+
+function showNumber(){
+  DAYS = daysSince(CONFIG.metISO);   // caso a página tenha sido aberta no dia anterior
+  const p = CONFIG.metISO.split("-").map(Number), now = new Date();
+  const mesesExatos = now.getDate() === p[2] && ((now.getFullYear()-p[0])*12 + now.getMonth()-(p[1]-1)) === 5;
+  if(!mesesExatos) CONFIG.rev3 = CONFIG.rev3outroDia;
+  $("stats").classList.remove("on");
+  tReveal = performance.now();
+  syncMusic();
+  startClipB();                 // começa a gravar a reação a partir daqui
+  const cEl = $("count");
+  $("reveal").classList.add("on");
+  setTimeout(()=>{
+    cEl.classList.add("on");
+    let t0 = null; const dur = 2400;
+    const step = ts => {
+      if(!t0) t0 = ts;
+      const p = Math.min((ts - t0)/dur, 1), e = 1 - Math.pow(1-p, 3);
+      cEl.textContent = Math.round(e * DAYS);
+      if(p < 1) requestAnimationFrame(step);
+      else { cEl.textContent = DAYS; $("rlabel").style.opacity = 1; lines(); }
+    };
+    requestAnimationFrame(step);
+  }, 600);
+  function lines(){
+    [["l1",CONFIG.rev1,900],["l2",CONFIG.rev2,2700],["l3",CONFIG.rev3,5200]]
+      .forEach(a => setTimeout(()=>{ $(a[0]).textContent = a[1]; $(a[0]).classList.add("on"); }, a[2]));
+    setTimeout(startProposal, 8200);
+  }
+}
+
+// ---------- a palavra bônus: caos ilegível -> trava em verde fora de ordem ----------
+function startProposal(){
+  const rv = $("reveal");
+  rv.style.transition = "opacity 1s"; rv.style.opacity = 0;
+  setTimeout(()=>{ rv.classList.remove("on"); rv.style.opacity = ""; rv.style.transition = ""; }, 1000);
+  kb.style.transition = "opacity .6s"; kb.style.opacity = 0;
+  $("title").textContent = "PALAVRA BÔNUS";
+  $("hintbar").style.display = "none";
+  $("sub").textContent = "esta é especial…";
+  const words = CONFIG.bonus.map(w => [...w.toUpperCase()]);
+  const maxLen = Math.max(...words.map(w => w.length));
+  sizeTiles(maxLen, words.length);
+  board.style.justifyItems = "center";
+  board.innerHTML = words.map(w => `<div class="row" style="grid-template-columns:repeat(${w.length},auto)">${'<div class="tile"></div>'.repeat(w.length)}</div>`).join("");
+  const rowsEl = [...board.children].map(r => [...r.children]);
+  const flat = [];
+  rowsEl.forEach((tiles, ri) => tiles.forEach((el, ci) => flat.push({ el, char: words[ri][ci] })));
+  const timers = new Map();
+  const rnd = () => GLY[Math.floor(Math.random()*GLY.length)];
+
+  // 1) CAOS: cada quadrado pisca símbolos aleatórios, ilegível
+  setTimeout(()=>{
+    flat.forEach(f=>{
+      f.el.classList.add("filled","chaos");
+      f.el.textContent = rnd();
+      const id = setInterval(()=>{ f.el.textContent = rnd(); }, 60 + Math.random()*70);
+      timers.set(f.el, id);
+    });
+    setTimeout(lock, CONFIG.chaosMs);
+  }, 1100);
+
+  // 2) TRAVA: em ordem totalmente aleatória pela tela inteira
+  function lock(){
+    const order = flat.slice();
+    for(let i=order.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
+    let k = 0;
+    const lockNext = () => {
+      if(k >= order.length){ setTimeout(endCue, 1000); return; }
+      const f = order[k++];
+      clearInterval(timers.get(f.el));
+      f.el.classList.remove("chaos");
+      f.el.classList.add("flip");
+      setTimeout(()=>{ f.el.textContent = f.char; f.el.classList.add("green"); }, 240);
+      setTimeout(lockNext, CONFIG.lockStep);
+    };
+    lockNext();
+  }
+}
+
+function endCue(){
+  const sub = $("sub");
+  sub.style.transition = "opacity .8s"; sub.style.opacity = 0;
+  setTimeout(()=>{ sub.textContent = CONFIG.cue; sub.style.color = "var(--green)"; sub.style.fontSize = "18px"; sub.style.opacity = 1; }, 800);
+  // depois de um tempo pro "sim" acontecer, encerra e mostra o loop da reação
+  setTimeout(()=> stopAll(showLoop), CONFIG.loopDelay);
+}
+
+// ====================== GRAVAÇÃO ======================
+// recC = o ÚNICO gravador ao vivo: câmera pura + microfone, do "jogar" até o fim do pedido.
+// Os outros vídeos (reação, Instagram 30s, completos 9:16 e lado a lado) são montados DEPOIS, a partir dele
+// + do registro da tela (TL). recB/recI/recF ficam nulos (mantidos só pra compatibilidade).
+let tReveal = 0, recF=null, chunksF=[];
+const SESSAO = (()=>{ const d = new Date(), z = n => String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+" "+z(d.getHours())+"h"+z(d.getMinutes()); })();
+let camStream=null, camVid=null, recB=null, recC=null, recI=null, chunksB=[], chunksC=[], chunksI=[], recType="video/webm", drawing=false;
+function pickMime(){
+  const c=["video/mp4;codecs=avc1.640032,mp4a.40.2","video/mp4;codecs=avc1.640028,mp4a.40.2","video/mp4;codecs=avc1.4D0028,mp4a.40.2", // H.264 High/Main primeiro (melhor qualidade)
+    "video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4;codecs=avc1,mp4a","video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
+  if(window.MediaRecorder && MediaRecorder.isTypeSupported)
+    for(const m of c){ if(MediaRecorder.isTypeSupported(m)) return m; }
+  return "";
+}
+const EXT = () => recType.includes("mp4") ? "mp4" : "webm";
+let recErr = "";
+function newRec(stream, chunks, vbps=6000000){
+  const m = pickMime(), opt = { videoBitsPerSecond:vbps, audioBitsPerSecond:192000 };
+  if(m) opt.mimeType = m;
+  let r;
+  try{ r = new MediaRecorder(stream, opt); }
+  catch(e){ r = new MediaRecorder(stream, m ? { mimeType:m } : undefined); } // alguns aparelhos recusam bitrate
+  recType = r.mimeType || m || "video/webm";
+  console.log("gravador:", r.mimeType || m);
+  r.ondataavailable = e => { if(e.data && e.data.size) chunks.push(e.data); };
+  r._t0 = performance.now(); r.addEventListener("stop", ()=>{ r._t1 = performance.now(); });
+  r.start(1000); // em pedaços de 1s: SEM isso o Safari do iOS 26 para de gravar a imagem depois de ~15–25s (WebKit 315091). A duração é consertada depois (remux).
+  return r;
+}
+async function startCamera(){
+  if(!CONFIG.gravar || !navigator.mediaDevices || !window.MediaRecorder) return false;
+  const v = { facingMode:"user", width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:30, max:30} };   // 30 fps estáveis (60 picotava com pouca luz/carga)
+  try{ camStream = await navigator.mediaDevices.getUserMedia({ video:v, audio:{ echoCancellation:true, noiseSuppression:false, autoGainControl:true } }); }
+  catch(e){ // microfone negado? grava pelo menos o vídeo
+    try{ camStream = await navigator.mediaDevices.getUserMedia({ video:v }); }catch(e2){ camStream = null; recErr = e2.name + ": " + e2.message; return false; }
+  }
+  // tenta 1080p a 60 fps de verdade (se o aparelho recusar, segue com o que já tem)
+  const vt = camStream.getVideoTracks()[0];
+  // (sem applyConstraints: no Safari ele reinicia a câmera e dá um engasgo)
+  try{ vt && console.log("câmera:", JSON.stringify(vt.getSettings())); }catch(e){}
+  camVid = document.createElement("video");
+  camVid.muted = true; camVid.playsInline = true; camVid.setAttribute("playsinline","");
+  camVid.srcObject = camStream;
+  camVid.style.cssText = "position:fixed;left:0;top:0;width:180px;height:240px;opacity:.01;z-index:-1;pointer-events:none";   // tamanho real: o Safari não reduz os quadros de um vídeo "visível"
+  document.body.appendChild(camVid);
+  try{ await camVid.play(); }catch(e){}
+  diagFps();
+  try{ camSet = camStream.getVideoTracks()[0].getSettings(); }catch(e){}
+  startComposite();
+  return true;
+}
+
+// ---------- AO VIVO: só UM gravador (câmera pura + microfone) + registro do que estava na tela ----------
+// Nada de canvas/captureStream durante o pedido: os vídeos montados (tela + rosto) são gerados DEPOIS,
+// a partir do arquivo da câmera + este registro (mediabunny + WebCodecs).
+const LW = 1920, LH = 1080, LHALF = 960;           // completo: lado a lado
+const IW = 1080, IH = 1920, IFACE = 840;           // instagram: rosto em cima, tela embaixo
+const IG_MS = 30000;
+let extraTracks = [];
+let ops = [], bodyBg = "#121214", lastPaint = 0, recT0 = 0, tRevealRel = -1;
+const TL = { states: [], frames: [] };             // states: estados distintos da tela; frames: [ms desde o início da gravação, índice]
+let tlKey = "";
+const mx = document.createElement("canvas").getContext("2d");   // só pra medir texto (quebra de linha)
+function mkCanvas(w,h){ const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
+function startComposite(){
+  try{ recC = newRec(camStream, chunksC, 12000000); }catch(e){ recC = null; recErr = e.name + ": " + e.message; return; }
+  recT0 = recC._t0;
+  recC.addEventListener("start", ()=>{ recT0 = performance.now(); TL.frames.length = 0; });
+  recC.addEventListener("error", e => diag("gravador erro: " + (e.error && e.error.name)));   // t=0 do arquivo ≈ evento "start"
+  drawing = true; logTick(); requestAnimationFrame(frame);
+}
+let camFrames = 0, paintFrames = 0, diagT0 = 0, camSet = null;
+const DIAG = [];   // anotações do ensaio: buracos de imagem, eventos da câmera/microfone
+function fase(){
+  if($("loop").classList.contains("on")) return "tela final";
+  if($("reveal").classList.contains("on")) return "número";
+  if($("stats").classList.contains("on")) return "estatísticas";
+  if($("title").textContent.includes("BÔNUS")) return "pedido";
+  return "jogo";
+}
+function diag(msg){ const t = recT0 ? ((performance.now() - recT0)/1000).toFixed(1) + "s" : "-"; DIAG.push(t + " " + msg + " (" + fase() + ")"); console.log("DIAG", t, msg); }
+function diagFps(){
+  diagT0 = performance.now();
+  if(camVid && camVid.requestVideoFrameCallback){
+    let last = 0;
+    const f = () => { const now = performance.now(); camFrames++;
+      if(last && now - last > 400) diag("câmera sem imagem por " + ((now - last)/1000).toFixed(1) + "s");
+      last = now; if(drawing) camVid.requestVideoFrameCallback(f); };
+    camVid.requestVideoFrameCallback(f);
+  }
+  try{ camStream.getTracks().forEach(t => { ["mute","unmute","ended"].forEach(ev => t.addEventListener(ev, () => diag(t.kind + " " + ev))); }); }catch(e){}
+  document.addEventListener("visibilitychange", () => diag("página " + document.visibilityState));
+  camVid && ["pause","waiting","stalled","suspend"].forEach(ev => camVid.addEventListener(ev, () => diag("vídeo oculto: " + ev)));
+}
+function startClipB(){ // chamado quando o número aparece: só marca o instante (os clipes são cortados depois)
+  if(recC){ tRevealRel = performance.now() - recT0; console.log("montar: revelação em", (tRevealRel/1000).toFixed(3), "s do arquivo"); }
+}
+function logTick(){
+  paintFrames++;
+  snapshot();
+  const st = { W: innerWidth, H: innerHeight, done, bg: bodyBg, ops };
+  const key = JSON.stringify(st);
+  if(key !== tlKey){ TL.states.push(st); tlKey = key; }
+  TL.frames.push([Math.round(performance.now() - recT0), TL.states.length - 1]);
+}
+function frame(ts){
+  if(!drawing) return;
+  if(ts - lastPaint > 30){ lastPaint = ts; try{ logTick(); }catch(e){} }   // ~30 registros por segundo
+  requestAnimationFrame(frame);
+}
+function stateAt(ms){   // último estado registrado até esse instante
+  const f = TL.frames; if(!f.length) return null;
+  let lo = 0, hi = f.length - 1;
+  if(ms <= f[0][0]) return TL.states[f[0][1]];
+  while(lo < hi){ const m = (lo + hi + 1) >> 1; if(f[m][0] <= ms) lo = m; else hi = m - 1; }
+  return TL.states[f[lo][1]];
+}
+function rr(c,x,y,w,h,r){
+  c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+function drawScreen(c, st, x, y, w, h, s, ox, oy){
+  c.save();
+  c.beginPath(); c.rect(x,y,w,h); c.clip();
+  c.fillStyle = st.bg; c.fillRect(x,y,w,h);
+  c.setTransform(s,0,0,s,ox,oy);
+  for(const o of st.ops) (o.t==="b" ? drawBox : drawText)(c, o);
+  c.restore();
+}
+function drawFace(c, smp, x, y, w, h){   // smp = VideoSample do mediabunny: draw() já aplica a rotação do MP4 (sempre em pé)
+  const vw = smp.displayWidth, vh = smp.displayHeight; if(!vw || !vh) return;
+  const sc = Math.max(w/vw, h/vh);
+  c.save();
+  c.beginPath(); c.rect(x,y,w,h); c.clip();
+  c.translate(x + w/2, y + h/2); c.scale(-1,1);   // espelhado, como a câmera frontal
+  smp.draw(c, -vw*sc/2, -vh*sc/2, vw*sc, vh*sc);
+  c.restore();
+}
+function paintL(c, smp, st){
+  const W = st.W, H = st.H, s = Math.min(LHALF/W, LH/H);
+  c.setTransform(1,0,0,1,0,0);
+  c.fillStyle = "#000"; c.fillRect(0,0,LW,LH);
+  drawScreen(c, st, 0, 0, LHALF, LH, s, (LHALF - W*s)/2, (LH - H*s)/2);
+  drawFace(c, smp, LHALF, 0, LHALF, LH);
+}
+function paintI(c, smp, st){
+  // na revelação e no pedido o teclado some, então mostra só a parte de cima da tela (onde está tudo), maior
+  const W = st.W, H = st.H, area = IH - IFACE;
+  const Hw = st.done ? Math.min(H, 700) : H, s = Math.min(IW/W, area/Hw);
+  c.setTransform(1,0,0,1,0,0);
+  c.fillStyle = st.bg; c.fillRect(0,0,IW,IH);
+  drawFace(c, smp, 0, 0, IW, IFACE);
+  drawScreen(c, st, 0, IFACE, IW, area, s, (IW - W*s)/2, IFACE + (area - Hw*s)/2);
+  c.fillStyle = "rgba(255,255,255,.12)"; c.fillRect(0, IFACE, IW, 2);
+}
+// ---------- DEPOIS: monta os vídeos a partir do arquivo da câmera (mediabunny, vendorizado em lib/) ----------
+let mbP = null;
+// espera a página estar na frente (o iOS derruba o decodificador/codificador de vídeo de páginas em segundo plano)
+async function visivel(){ while(document.hidden) await sleep(500); }
+// o Safari grava "nível 1.0" (resolução minúscula) no cabeçalho H.264; corrige pro decodificador não recusar 1080p
+if(window.VideoDecoder){
+  const fixCfg = c => {
+    if(!c || !/^avc[13]\.[0-9a-f]{6}$/i.test(c.codec || "")) return c;
+    const lvl = parseInt(c.codec.slice(-2), 16);
+    if(lvl >= 0x28) return c;
+    const n = Object.assign({}, c, { codec: c.codec.slice(0, -2) + "28" });
+    try{ if(c.description){ const b = new Uint8Array(c.description instanceof ArrayBuffer ? c.description.slice(0) : c.description.buffer.slice(c.description.byteOffset, c.description.byteOffset + c.description.byteLength)); if(b.length > 3) b[3] = 0x28; n.description = b; } }catch(e){}
+    return n;
+  };
+  const cfgOrig = VideoDecoder.prototype.configure;
+  VideoDecoder.prototype.configure = function(c){ return cfgOrig.call(this, fixCfg(c)); };
+  const supOrig = VideoDecoder.isConfigSupported && VideoDecoder.isConfigSupported.bind(VideoDecoder);
+  if(supOrig) VideoDecoder.isConfigSupported = c => supOrig(fixCfg(c));
+}
+const loadMB = () => mbP || (mbP = import("./lib/mediabunny-1.65.2.min.mjs").catch(e => { mbP = null; throw e; }));
+// layout: null = só o rosto (câmera pura); "I" = 9:16; "L" = lado a lado. Tempos em segundos do arquivo.
+async function montar(raw, layout, start, end, onProg){
+  const MB = await loadMB();
+  const input = new MB.Input({ source: new MB.BlobSource(raw), formats: MB.ALL_FORMATS });
+  const output = new MB.Output({ format: new MB.Mp4OutputFormat({ fastStart: "in-memory" }), target: new MB.BufferTarget() });
+  const off = (start || 0) * 1000;   // o mediabunny entrega os quadros já com t=0 no início do corte
+  let cv = null, cx = null;
+  const W = layout === "L" ? LW : IW, H = layout === "L" ? LH : IH, paint = layout === "L" ? paintL : paintI;
+  const video = layout === "copy" ? {} : layout ? {
+    codec: "avc", bitrate: 12000000, frameRate: 30, keyFrameInterval: 2, processedWidth: W, processedHeight: H,
+    process: smp => {
+      if(!cv){ cv = new OffscreenCanvas(W, H); cx = cv.getContext("2d"); }
+      const st = stateAt(smp.timestamp * 1000 + off);
+      if(st) paint(cx, smp, st);
+      return cv;
+    } } : { codec: "avc", bitrate: 16000000, frameRate: 30, keyFrameInterval: 2, forceTranscode: true };
+  const trim = {}; if(start) trim.start = start; if(end) trim.end = end;
+  const conv = await MB.Conversion.init({ input, output, video, audio: {}, trim, showWarnings: false });
+  if(!conv.isValid) throw new Error("conversão inválida: " + conv.discardedTracks.map(d => d.reason).join(","));
+  let lastP = performance.now(), lastV = -1;
+  conv.onProgress = p => { if(p !== lastV){ lastV = p; lastP = performance.now(); } onProg && onProg(p); };
+  // vigia: se ficar 45s sem avançar (ex.: "finalizando" eterno no Safari), cancela e segue pro próximo
+  let vig; const travou = new Promise((_, no) => { vig = setInterval(() => { if(performance.now() - lastP > 45000){ clearInterval(vig); try{ conv.cancel(); }catch(e){} no(new Error("travou em " + Math.round(lastV*100) + "%")); } }, 2000); });
+  try{ await Promise.race([conv.execute(), travou]); } finally{ clearInterval(vig); }
+  const buf = output.target.buffer;
+  try{ input.dispose && input.dispose(); }catch(e){}
+  if(!buf || buf.byteLength < 1000) throw new Error("saída vazia");
+  return buf;
+}
+
+// lê a página e monta a lista do que desenhar (uma vez por frame, usada nos dois vídeos)
+const SKIP = new Set(["SCRIPT","STYLE","VIDEO","CANVAS","LINK","META"]);
+function snapshot(){
+  ops = []; bodyBg = getComputedStyle(document.body).backgroundColor;
+  walk(document.body, 1);
+}
+function walk(el, op){
+  if(SKIP.has(el.tagName) || el.id==="gate" || el.id==="loop") return;
+  const cs = getComputedStyle(el);
+  if(cs.display==="none" || cs.visibility==="hidden") return;
+  op *= parseFloat(cs.opacity);
+  if(op < .01) return;
+  if(el !== document.body) box(el, cs, op);
+  for(const n of el.childNodes){
+    if(n.nodeType===1) walk(n, op);
+    else if(n.nodeType===3 && n.textContent.trim()) text(n, cs, op);
+  }
+}
+function box(el, cs, op){
+  const bg = cs.backgroundColor, bw = parseFloat(cs.borderTopWidth) || 0;
+  const hasBg = bg && bg!=="transparent" && !/,\s*0\)$/.test(bg);
+  if(!hasBg && !bw) return;
+  const r = el.getBoundingClientRect(); if(r.width<1 || r.height<1) return;
+  const rad = Math.max(0, Math.min(parseFloat(cs.borderTopLeftRadius)||0, r.width/2, r.height/2));
+  ops.push({ t:"b", x:r.left, y:r.top, w:r.width, h:r.height, rad, bg: hasBg ? bg : null, bw, bc: cs.borderTopColor, op });
+}
+function drawBox(c, o){
+  c.globalAlpha = o.op;
+  if(o.bg){ c.beginPath(); rr(c,o.x,o.y,o.w,o.h,o.rad); c.fillStyle = o.bg; c.fill(); }
+  if(o.bw){
+    c.beginPath(); rr(c, o.x+o.bw/2, o.y+o.bw/2, o.w-o.bw, o.h-o.bw, Math.max(0,o.rad-o.bw/2));
+    c.lineWidth = o.bw; c.strokeStyle = o.bc; c.stroke();
+  }
+  c.globalAlpha = 1;
+}
+function wrap(str, n, maxW){
+  const words = str.split(" "), lines = []; let cur = "";
+  for(const w of words){
+    const t = cur ? cur+" "+w : w;
+    if(cur && mx.measureText(t).width > maxW+1 && lines.length < n-1){ lines.push(cur); cur = w; } else cur = t;
+  }
+  lines.push(cur); return lines;
+}
+function text(node, cs, op){
+  const range = document.createRange(); range.selectNodeContents(node);
+  const rects = [...range.getClientRects()].filter(r => r.width > 0);
+  if(!rects.length) return;
+  const el = node.parentElement, er = el.getBoundingClientRect();
+  const kx = el.offsetWidth ? er.width/el.offsetWidth : 1, ky = el.offsetHeight ? er.height/el.offsetHeight : 1;
+  if(ky < .05 || kx < .05) return;   // quadrado no meio do flip
+  const font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const ls = cs.letterSpacing==="normal" ? "0px" : cs.letterSpacing;
+  let str = node.textContent.replace(/\s+/g," ").trim();
+  if(cs.textTransform==="uppercase") str = str.toUpperCase();
+  let lines = [str];
+  if(rects.length > 1){
+    mx.font = font; if("letterSpacing" in mx) mx.letterSpacing = ls;
+    lines = wrap(str, rects.length, Math.max(...rects.map(r=>r.width))/kx);
+  }
+  ops.push({ t:"x", font, ls, color: cs.color, op, kx, ky,
+    lines: rects.map((r,i) => ({ x: r.left + r.width/2, y: r.top + r.height/2, s: lines[i] || "" })) });
+}
+function drawText(c, o){
+  c.font = o.font; if("letterSpacing" in c) c.letterSpacing = o.ls;
+  c.fillStyle = o.color; c.globalAlpha = o.op; c.textBaseline = "middle"; c.textAlign = "center";
+  for(const l of o.lines){
+    if(!l.s) continue;
+    c.save(); c.translate(l.x, l.y); c.scale(o.kx, o.ky); c.fillText(l.s, 0, 0); c.restore();
+  }
+  c.globalAlpha = 1;
+}
+
+function stopAll(cb){
+  let pending = 0, called = false;
+  const finish = () => {
+    if(called) return; called = true;
+    drawing = false;
+    try{ camStream && camStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+    extraTracks.forEach(t => { try{ t.stop(); }catch(e){} });
+    try{ if(navigator.audioSession) navigator.audioSession.type = "playback"; }catch(e){}   // sem microfone: tela final no volume normal
+    cb();
+  };
+  const fin = () => { if(--pending <= 0) finish(); };
+  [recB, recC, recI, recF].forEach(r => {
+    if(r && r.state !== "inactive"){ pending++; r.onstop = fin; r.onerror = fin; try{ r.stop(); }catch(e){ fin(); } }
+  });
+  if(pending === 0) finish();
+  setTimeout(finish, 15000);   // se algum gravador travar, a tela final aparece mesmo assim
+}
+// ====================== SALVAR: celular (IndexedDB) + Google Drive + versões com música ======================
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const VIDS = [ // ordem = ordem de envio pro Drive (menores primeiro)
+  { key:"B", label:"Só a reação",            name:"reacao",                    chunks:()=>chunksB, rec:()=>recB },
+  { key:"I", label:"Instagram 30s",           name:"pedido-instagram-30s",      chunks:()=>chunksI, rec:()=>recI },
+  { key:"F", label:"Completo · Instagram",    name:"pedido-completo-instagram", chunks:()=>chunksF, rec:()=>recF },
+  { key:"C", label:"Completo (lado a lado)",  name:"pedido-completo",           chunks:()=>chunksC, rec:()=>recC },
+];
+
+// ---------- IndexedDB: guarda cada vídeo no próprio celular assim que fica pronto ----------
+function idb(){
+  return new Promise((ok, no) => {
+    const q = indexedDB.open("pedido-videos", 1);
+    q.onupgradeneeded = () => q.result.createObjectStore("v");
+    q.onsuccess = () => ok(q.result); q.onerror = () => no(q.error);
+  });
+}
+async function idbPut(file){
+  const job = (async()=>{ const db = await idb(); await new Promise((ok,no)=>{ const t = db.transaction("v","readwrite"); t.objectStore("v").put(file, file.name); t.oncomplete = ok; t.onerror = t.onabort = ()=>no(t.error || new Error("idb")); }); return true; })().catch(()=>false);
+  return Promise.race([job, sleep(180000).then(()=>false)]);
+}
+async function idbAll(){
+  try{ const db = await idb(); return await new Promise((ok,no)=>{ const out = []; const t = db.transaction("v"); const c = t.objectStore("v").openCursor();
+    c.onsuccess = () => { const k = c.result; if(k){ out.push(k.value); k.continue(); } else ok(out); }; c.onerror = ()=>no(c.error); }); }
+  catch(e){ return []; }
+}
+
+// ---------- Google Drive (via Google Apps Script do próprio usuário; ver CONFIG.drive) ----------
+// Caminho DIRETO (rápido): o script só entrega um token de acesso; o celular abre a sessão "resumable"
+// no Drive e manda o arquivo em pedaços de 16 MB direto do File (sem base64, sem passar pelo script).
+// Se o script ainda for a versão antiga (sem a ação "token") ou o envio direto falhar logo de cara,
+// cai no caminho antigo (PROXY: base64 de 8 MB via script), que continua igual.
+const DRV_API = "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id,name,size";
+let driveMode = null;    // null = ainda não sabe, "direto" ou "proxy"
+let directOk = false;    // algum pedaço já foi aceito direto pelo Drive nesta página?
+class DirectOff extends Error {}   // "o caminho direto não serve aqui" → usa o proxy
+function blobToB64(b){ return new Promise((ok,no)=>{ const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = () => no(r.error); r.readAsDataURL(b); }); }
+async function drivePost(obj){
+  const ac = new AbortController(), to = setTimeout(()=>ac.abort(), 300000);   // 5 min: uplink fraco no 4G
+  let r; try{ r = await fetch(CONFIG.drive, { method:"POST", body: JSON.stringify(obj), signal: ac.signal }); } finally{ clearTimeout(to); } // text/plain: sem preflight CORS
+  const j = await r.json(); if(!j.ok) throw new Error(j.error || "drive"); return j;
+}
+// fetch com tempo limite (AbortController); erro de rede/tempo vira exceção com .net = true
+async function fetchTO(url, opt, ms){
+  const ac = new AbortController(), to = setTimeout(()=>ac.abort(), ms);
+  const t0 = Date.now();
+  try{ return await fetch(url, Object.assign({}, opt, { signal: ac.signal })); }
+  catch(e){ const x = new Error("rede: " + (e && e.name || e)); x.net = true; x.fast = Date.now() - t0 < 20000 && !ac.signal.aborted; throw x; }
+  finally{ clearTimeout(to); }
+}
+// lê o "Range: bytes=0-N" da resposta 308 → próximo byte a mandar
+let rangeSeen = false;   // o navegador consegue ler o cabeçalho Range? (se o Drive não expuser, supõe pedaço inteiro gravado)
+function nextOff(r, guess){
+  const h = r.headers.get("Range"), m = /bytes=\d+-(\d+)/.exec(h || "");
+  if(m){ rangeSeen = true; return Number(m[1]) + 1; }
+  return rangeSeen ? 0 : guess;   // sem Range = nada gravado ainda
+}
+// pergunta pro Drive quanto do arquivo ele já tem (PUT vazio com "bytes */total")
+async function driveStatus(url, total, known){
+  const r = await fetchTO(url, { method:"PUT", headers:{ "Content-Range":"bytes */" + total } }, 30000);
+  directOk = true;   // deu pra ler a resposta = CORS funciona
+  if(r.status === 200 || r.status === 201) return total;
+  if(r.status === 308) return nextOff(r, known);
+  const x = new Error("status " + r.status); x.gone = r.status === 404 || r.status === 410; x.net = r.status >= 500 || r.status === 429; throw x;
+}
+// o script responde? (se sim e o Drive direto não, o problema é CORS, não a rede do celular)
+async function scriptVivo(){ try{ await drivePost({ a:"ping" }); return true; }catch(e){ return /desconhecida/.test(e.message); } }
+function forget(key){ try{ localStorage.removeItem(key); }catch(e){} }
+// abre (ou reaproveita, se a página recarregou) a sessão resumable direto do navegador, com o token do script
+async function driveSession(file){
+  const key = "upS:" + file.name + ":" + file.size;
+  try{ const u = localStorage.getItem(key); if(u) return { url:u, key, old:true }; }catch(e){}
+  let t;
+  try{ t = await drivePost({ a:"token" }); }
+  catch(e){ if(/desconhecida|TOKEN_ATE/.test(e.message)) throw new DirectOff(e.message); throw e; } // script antigo (sem "token") ou vencido
+  if(!t.token) throw new DirectOff("sem token");
+  let r;
+  try{
+    r = await fetchTO(DRV_API, { method:"POST", headers:{
+      "Authorization":"Bearer " + t.token, "Content-Type":"application/json; charset=UTF-8",
+      "X-Upload-Content-Type": file.type || "video/mp4", "X-Upload-Content-Length": String(file.size) },
+      body: JSON.stringify({ name:file.name, parents:[t.pasta] }) }, 60000);
+  }catch(e){ if(!directOk && await scriptVivo()) throw new DirectOff("CORS ao abrir sessão"); throw e; }
+  const url = r.ok && r.headers.get("Location");
+  if(!url){ if(!directOk && (r.status === 401 || r.status === 403 || r.ok)) throw new DirectOff("sessão " + r.status); throw new Error("sessão " + r.status); }
+  try{ localStorage.setItem(key, url); }catch(e){}
+  return { url, key, old:false };
+}
+async function driveDirect(file, onProg){
+  const s = await driveSession(file), total = file.size;
+  let off = 0, CH = 16*1024*1024, fails = 0, fast = 0, ask = s.old;   // 16 MB = 64 × 256 KB (o Drive exige múltiplos de 256 KB)
+  const prog = () => onProg && onProg(off / total);
+  for(;;){
+    try{
+      if(ask){ off = await driveStatus(s.url, total, off); ask = false; prog(); }   // depois de erro: exatamente até onde o Drive gravou
+      if(off >= total) break;   // o Drive já tem tudo (ex.: sessão retomada que tinha terminado)
+      const end = Math.min(off + CH, total);
+      const r = await fetchTO(s.url, { method:"PUT", headers:{ "Content-Range":"bytes " + off + "-" + (end-1) + "/" + total }, body: file.slice(off, end) }, 120000);
+      directOk = true;   // qualquer resposta legível = CORS funciona
+      if(r.status === 200 || r.status === 201){
+        let j = null; try{ j = await r.json(); }catch(e){}
+        if(j && j.size != null && Number(j.size) !== total){ forget(s.key); throw new Error("tamanho no Drive " + j.size + " ≠ " + total); }
+        off = total; prog(); break;
+      }
+      if(r.status === 308){   // pode ter gravado menos que o enviado: segue do que o Drive tem
+        const n = nextOff(r, end);
+        if(n > off){ fails = 0; off = n; prog(); continue; }
+        if(++fails >= 10) throw new Error("Drive não avança");   // 308 sem progresso: espera e pergunta de novo
+        await sleep(2000 * fails); ask = true; continue;
+      }
+      if(r.status === 404 || r.status === 410){ forget(s.key); throw new Error("sessão expirou " + r.status); }
+      if(r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429) throw new Error("drive " + r.status);
+      throw Object.assign(new Error("drive " + r.status), { net:true });   // 5xx/408/429: tenta de novo
+    }catch(e){
+      if(e instanceof DirectOff) throw e;
+      if(e.gone){ forget(s.key); throw e; }
+      if(!e.net) throw e;
+      // o Drive direto nunca respondeu nesta página, falhou rápido 2× e o script responde → CORS bloqueado: usa o proxy
+      if(!directOk && e.fast && ++fast >= 2 && await scriptVivo()){ forget(s.key); throw new DirectOff(e.message); }
+      if(++fails >= 10) throw e;                               // 10 erros seguidos sem avançar: desiste desta rodada
+      if(fails >= 3) CH = Math.max(4*1024*1024, CH / 2);       // conexão ruim: pedaços menores (continua múltiplo de 256 KB)
+      await sleep(Math.min(30000, 1000 * 2 ** Math.min(fails, 5)));
+      ask = true;
+    }
+  }
+  forget(s.key);
+  driveMode = "direto";
+}
+// espera ter internet e a página estar na frente (iOS corta conexões com a tela apagada / Safari em segundo plano)
+async function netOk(){ while(!navigator.onLine || document.hidden) await sleep(2000); }
+async function driveProxy(file, onProg){   // caminho antigo; agora continua a mesma sessão de onde parou
+  if(!file._ps){ await netOk(); file._ps = (await drivePost({ a:"start", name:file.name, mime:file.type || "video/mp4", size:file.size })).url; file._poff = 0; }
+  const CH = 8*1024*1024;
+  while(file._poff < file.size){
+    const off = file._poff, end = Math.min(off + CH, file.size), data = await blobToB64(file.slice(off, end));
+    for(let tries = 1; ; tries++){
+      await netOk();
+      try{ await drivePost({ a:"chunk", url:file._ps, start:off, end:end-1, total:file.size, data }); break; }
+      catch(e){ if(tries >= 8) throw e; await sleep(Math.min(30000, 2500*tries)); }
+    }
+    file._poff = end; onProg && onProg(end / file.size);
+  }
+}
+async function driveUpload(file, onProg){
+  if(driveMode !== "proxy"){
+    try{ return await driveDirect(file, onProg); }
+    catch(e){ if(!(e instanceof DirectOff)) throw e; driveMode = "proxy"; console.warn("Drive direto indisponível, usando o script:", e.message); kickUploads(); }
+  }
+  return driveProxy(file, onProg);
+}
+const upQueue = []; let upWorkers = 0, upDone = 0, upFail = 0; const upCur = {};
+const upMax = () => driveMode === "proxy" ? 3 : 2;   // direto: 2 (uplink do 4G/5G); proxy: 3 (o Apps Script é lento)
+function kickUploads(){ while(upWorkers < upMax() && upQueue.length) uploadWorker(); }
+function queueUpload(file){
+  if(!CONFIG.drive) return;
+  upQueue.push(file);   // fila FIFO: quem chama decide a ordem
+  kickUploads();
+}
+async function uploadWorker(){
+  upWorkers++;
+  while(upQueue.length && upWorkers <= upMax()){
+    const f = upQueue.shift();
+    let ok = false;
+    for(let round = 1; round <= 8 && !ok; round++){   // não desiste fácil: espera o sinal voltar e continua
+      await netOk();
+      try{ await driveUpload(f, p => { upCur[f.name] = Math.round(p*100) + "%"; status(); }); ok = true; }
+      catch(e){ console.warn("upload", f.name, e && e.message); upCur[f.name] = navigator.onLine ? "erro, tentando de novo" : "sem internet, esperando…"; status(); await sleep(Math.min(30000, 5000*round)); }
+    }
+    delete upCur[f.name]; ok ? upDone++ : upFail++;
+    if(ok) try{ localStorage.setItem("up:" + f.name, "1"); }catch(e){}
+    status();
+  }
+  upWorkers--; status();
+}
+
+// ---------- música (ffmpeg.wasm: junta o áudio sem regravar a imagem) ----------
+let ffCore = null, ffPre = null, ffJsUrl = null, ffWasm = null;   // mixador baixado no portão (blobs): funciona sem internet depois
+async function loadFF(){
+  if(ffCore) return ffCore;
+  if(ffPre) await ffPre;
+  await new Promise((ok,no)=>{ const s = document.createElement("script"); s.src = ffJsUrl || "ff/ffmpeg-core.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+  const opt = { locateFile: p => "ff/" + p };
+  if(ffWasm) opt.wasmBinary = await ffWasm.arrayBuffer();   // wasm já na memória: nem busca na rede
+  ffCore = await createFFmpegCore(opt);
+  const mus = new Uint8Array(await (musBlob || await (await fetch(CONFIG.musica.arquivo)).blob()).arrayBuffer());
+  ffCore.FS.writeFile("musica.m4a", mus);
+  return ffCore;
+}
+async function addMusic(v){
+  const M = CONFIG.musica, core = await loadFF();
+  const r = v.rec, ext = v.file.name.split(".").pop(), inN = "in." + ext, outN = "out." + ext;
+  const dur = Math.max(1, ((r && r._t1 || performance.now()) - (r && r._t0 || 0)) / 1000);
+  // em que segundo do vídeo a música deve começar (pode ser antes do vídeo começar)
+  // mesma posição da música que tocou ao vivo (ou, se não tocou, a calculada a partir do número)
+  // âncora no número: no instante do número a música está em M.noNumero (igual ao que tocou ao vivo após o ajuste)
+  const t0m = tReveal - (M.noNumero - M.entraEm)*1000;
+  const p0m = M.entraEm - M.inicioArquivo;
+  const dv = (t0m - (r && r._t0 || tReveal)) / 1000;
+  let P, D, FI;
+  if(dv >= 0){ P = p0m; D = Math.round(dv*1000); FI = 3; }   // vídeo completo: entra no instrumental
+  else       { P = p0m - dv; D = 0; FI = 1.5; }              // clipes curtos: já começa no ponto certo
+  const OUT = Math.max(0, dur - 2.5).toFixed(2);
+  const mus = `[1:a]atrim=start=${P.toFixed(2)},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=${FI},volume=${M.volume},adelay=${D}|${D}`;
+  const temVoz = !!(camStream && camStream.getAudioTracks().length);
+  const fc = temVoz
+    ? `${mus}[m];[0:a]aformat=channel_layouts=stereo[v0];[v0][m]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,afade=t=out:st=${OUT}:d=2.5[a]`
+    : `${mus},apad,afade=t=out:st=${OUT}:d=2.5[a]`;
+  core.FS.writeFile(inN, new Uint8Array(await v.file.arrayBuffer()), { canOwn:true });
+  const args = ["-i", inN, "-i", "musica.m4a", "-filter_complex", fc, "-map", "0:v", "-map", "[a]", "-c:v", "copy"];
+  if(ext === "mp4") args.push("-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart");
+  else args.push("-c:a", "libopus", "-b:a", "128k");
+  if(!temVoz) args.push("-t", dur.toFixed(2));
+  args.push(outN);
+  const ret = core.exec(...args);
+  try{ core.FS.unlink(inN); }catch(e){}   // libera a entrada antes de ler a saída (menos memória)
+  let data = null; try{ data = core.FS.readFile(outN); }catch(e){}
+  try{ core.FS.unlink(inN); }catch(e){} try{ core.FS.unlink(outN); }catch(e){}
+  try{ core.reset(); }catch(e){}
+  if(ret !== 0 || !data || data.length < 1000){ ffCore = null; throw new Error("ffmpeg " + ret); }
+  return new File([data], v.name + "-com-musica." + ext, { type: v.file.type });
+}
+
+// ---------- tela final ----------
+let savedLocal = 0, savedTotal = 0;
+function status(){
+  const parts = [];
+  if(savedTotal) parts.push((savedLocal === savedTotal ? "✓" : "…") + " salvos no celular: " + savedLocal + "/" + savedTotal);
+  if(CONFIG.drive){
+    const going = Object.entries(upCur).map(([n,p]) => n.replace(/\.(mp4|webm)$/,"") + " " + p);
+    const pend = going.length + upQueue.length;
+    const fim = !pend && upDone > 0 && !upFail && savedTotal && upDone >= savedTotal;
+    parts.push("☁️ Drive" + (driveMode ? " (" + driveMode + ")" : "") + ": " + upDone + " enviados" + (upFail ? ", " + upFail + " FALHARAM (abra ?videos depois pra reenviar)" : "") +
+      (pend ? " · enviando " + pend + " — não feche a página" : (fim ? " ✓ tudo no Drive" : " · aguardando…")) + (going.length ? "\n" + going.join(" · ") : ""));
+  }
+  $("savestatus").textContent = parts.join("   ·   ");
+}
+function shareBtn(btn, file, label){
+  const url = URL.createObjectURL(file);
+  btn.textContent = label; btn.href = url; btn.download = file.name; btn.classList.remove("wait");
+  btn.onclick = ev => {
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      ev.preventDefault(); navigator.share({ files:[file] }).catch(()=>{});
+    }
+  };
+  return url;
+}
+function rowEl(label){
+  const row = document.createElement("div"); row.className = "vrow";
+  row.innerHTML = `<span>${label}</span><a class="vbtn wait">…</a>` + (CONFIG.musica.versoes ? `<a class="vbtn wait">🎵 preparando…</a>` : "");
+  $("saves").appendChild(row);
+  return row.querySelectorAll("a");
+}
+async function showLoop(){
+  if(!chunksC.length) return; // sem gravação (ex: no artifact): o pedido já foi o fim
+  const type = ((recC && recC.mimeType) || recType || "video/mp4").split(";")[0], ext = type.includes("mp4") ? "mp4" : "webm";
+  // 1) PRIMEIRO o arquivo original da câmera: salva no celular e manda pro Drive antes de montar qualquer coisa
+  const bruto = new Blob(chunksC, { type });
+  chunksC = [];
+  // gravado em pedaços = MP4 "fragmentado" (sem duração no player): reempacota sem recomprimir (~1s, mesma qualidade)
+  let raw;
+  try{ if(ext !== "mp4") throw 0; const buf = await montar(bruto, "copy", 0, 0); raw = new File([buf], SESSAO + " - camera-completa.mp4", { type:"video/mp4" }); }
+  catch(e){ if(e) diag("reempacotar falhou: " + (e.message || e)); raw = new File([bruto], SESSAO + " - camera-completa." + ext, { type }); }
+  const durS = Math.max(1, ((recC && recC._t1 || performance.now()) - recT0) / 1000);
+  const rv = tRevealRel > 0 ? tRevealRel / 1000 : 0;
+  const mont = ext === "mp4" ? VIDS : [];   // webm (sem MP4 no aparelho): fica só o original
+  savedTotal = 1 + mont.length * (CONFIG.musica.versoes ? 2 : 1);
+  const [rb, rb2] = rowEl("Câmera completa (original)"); if(rb2) rb2.style.display = "none";
+  const lv = $("loopvid"); lv.src = shareBtn(rb, raw, "⬇ salvar"); lv.play().catch(()=>{});
+  if(ENSAIO){ const sec = (performance.now() - diagT0) / 1000, st = camSet;
+    $("loopcap").textContent = "ensaio · câmera " + (camFrames ? (camFrames/sec).toFixed(0) : "?") + " fps · registro " + (paintFrames/sec).toFixed(0) + "/s · " + TL.states.length + " estados · " + (st ? st.width + "×" + st.height + " @" + st.frameRate : ""); }
+  $("loop").classList.add("on"); status();
+  if(ENSAIO){ const d = document.createElement("div"); d.id = "diagbox"; d.style.cssText = "font:12px/1.4 ui-monospace,monospace;color:#e3a86a;text-align:left;max-width:400px;margin:10px 0;white-space:pre-wrap";
+    const upd = () => { d.textContent = "iOS: " + ((navigator.userAgent.match(/OS (\d+[_\d]*)/)||[])[1]||"?").replace(/_/g,".") + "  · " + (recC && recC.mimeType || "") + "\n" + (DIAG.length ? DIAG.join("\n") : "nenhum problema anotado"); };
+    upd(); setInterval(upd, 2000); $("savestatus").after(d); }
+  const rows = mont.map(v => { const [b1, b2] = rowEl(v.label); b1.textContent = "na fila…"; v.b1 = b1; v.b2 = b2; return v; });
+  const aviso = document.createElement("div"); aviso.style.cssText = "margin:10px 0;padding:10px 14px;border-radius:10px;background:#3a2a12;color:#f0c27a;font-size:14px;max-width:400px";
+  aviso.textContent = "⚠ deixe esta tela aberta, com o Safari na frente, até todos os vídeos ficarem prontos"; $("saves").before(aviso);
+  queueUpload(raw); if(await idbPut(raw)) savedLocal++; status();
+  // 2) os outros 4, um de cada vez (cada um: monta → salva → envia), liberando a memória entre eles
+  const corte = { B:[rv, 0], I:[rv, rv + IG_MS/1000], F:[0, 0], C:[0, 0] };
+  const lay = { B:null, I:"I", F:"I", C:"L" };
+  const done2 = [];
+  for(const v of rows){
+    const [s, e] = corte[v.key], fim = e ? Math.min(e, durS + 1) : 0;
+    v.name = SESSAO + " - " + v.name;
+    const prog = p => { v.b1.textContent = p >= .99 ? "finalizando…" : "montando " + Math.round(p*100) + "%…"; };
+    try{
+      prog(0); await sleep(30);
+      let buf;
+      for(let tent = 1; ; tent++){
+        await visivel();
+        try{ buf = await montar(raw, lay[v.key], s, fim, prog); break; }
+        catch(err){
+          diag("montagem " + v.label + " tentativa " + tent + ": " + (err && err.message));
+          if(tent < 3){ v.b1.textContent = document.hidden ? "volte pra esta tela…" : "tentando de novo…"; await sleep(1500); continue; }
+          if(v.key !== "B") throw err;
+          buf = await montar(raw, "copy", s, 0, prog); break;   // rosto: último recurso = corte sem recomprimir
+        }
+      }
+      v.file = new File([buf], v.name + ".mp4", { type:"video/mp4" }); buf = null;
+      v.rec = { _t0: recT0 + s*1000, _t1: recT0 + (fim || durS)*1000 };   // pro mixador de música (se ligado)
+      const url = shareBtn(v.b1, v.file, CONFIG.musica.versoes ? "⬇ sem música" : "⬇ salvar");
+      if(v.key === "B"){ lv.src = url; lv.play().catch(()=>{}); }   // o loop passa a ser só a reação
+      queueUpload(v.file); if(await idbPut(v.file)) savedLocal++;
+      done2.push(v);
+    }catch(err){
+      console.warn("montar", v.key, err);
+      v.b1.textContent = "indisponível"; savedTotal -= CONFIG.musica.versoes ? 2 : 1;
+      diag("montagem " + v.label + " falhou: " + (err && err.message));
+      if(v.b2) v.b2.textContent = "🎵 indisponível";
+    }
+    status();
+  }
+  aviso.textContent = "✓ vídeos prontos. Se o Drive ainda estiver enviando, deixe a tela aberta mais um pouco."; aviso.style.background = "#14301f"; aviso.style.color = "#8fd6a8";
+  if(!CONFIG.musica.versoes) return;
+  for(const v of done2){
+    if(v.file.size > 600*1024*1024){ v.b2.textContent = "🎵 grande demais"; savedTotal--; status(); continue; }   // evita estourar a memória do ffmpeg
+    try{
+      await sleep(50);
+      const fm = await addMusic(v);
+      shareBtn(v.b2, fm, "🎵 com música");
+      queueUpload(fm); if(await idbPut(fm)) savedLocal++; status();
+    }catch(e){ v.b2.textContent = "🎵 indisponível"; savedTotal--; status(); }
+  }
+}
+
+// ---------- ?videos : recupera os vídeos salvos no celular ----------
+async function showSaved(){
+  $("gate").classList.remove("on");
+  const files = await idbAll();
+  $("loopcap").textContent = files.length ? "vídeos salvos neste celular" : "nenhum vídeo salvo neste celular";
+  savedTotal = savedLocal = files.length;
+  $("loopvid").style.display = "none";
+  for(const f of files){
+    const row = document.createElement("div"); row.className = "vrow";
+    row.innerHTML = `<span>${f.name}</span><a class="vbtn"></a><a class="vbtn">☁️ Drive</a>`;
+    $("saves").appendChild(row);
+    const [b1, b2] = row.querySelectorAll("a");
+    shareBtn(b1, f, "⬇ salvar");
+    let enviado = false; try{ enviado = !!localStorage.getItem("up:" + f.name); }catch(e){}
+    if(!CONFIG.drive) b2.style.display = "none";
+    else if(enviado){ b2.textContent = "☁️ já no Drive"; upDone++; b2.onclick = () => { if(b2.dataset.q) return; b2.dataset.q = 1; upDone--; b2.textContent = "na fila…"; queueUpload(f); }; }
+    else { b2.textContent = "☁️ enviando…"; b2.dataset.q = 1; queueUpload(f); }   // retoma sozinho o que não chegou no Drive   // retoma sozinho o que não chegou no Drive
+  }
+  $("loop").classList.add("on"); status();
+}
+
+// ====================== TELA SEMPRE ACESA ======================
+let wl = null;
+async function keepAwake(){
+  try{ if("wakeLock" in navigator && !wl && document.visibilityState === "visible"){ wl = await navigator.wakeLock.request("screen"); wl.addEventListener("release", ()=>{ wl = null; }); } }catch(e){}
+}
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState === "visible"){ keepAwake(); if(camVid) camVid.play().catch(()=>{}); }
+});
+
+// ====================== SEM ZOOM (pinça / toque duplo) ======================
+["gesturestart","gesturechange","gestureend"].forEach(ev => document.addEventListener(ev, e => e.preventDefault(), { passive:false }));
+document.addEventListener("touchmove", e => { if(e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive:false });
+let lastTouch = 0;
+document.addEventListener("touchend", e => {
+  const now = Date.now();
+  if(now - lastTouch < 350 && !e.target.closest("a")) e.preventDefault();
+  lastTouch = now;
+}, { passive:false });
+document.addEventListener("dblclick", e => e.preventDefault(), { passive:false });
+
+// ====================== EVENTOS / INÍCIO ======================
+kb.addEventListener("touchstart", e=>{   // teclas respondem no toque (dois polegares rápidos não perdem letra)
+  e.preventDefault();
+  for(const t of e.changedTouches){ const el = t.target.nodeType === 1 ? t.target : t.target.parentElement; const b = el && el.closest("[data-k]"); if(b) press(b.dataset.k); }
+}, { passive:false });
+kb.addEventListener("click", e=>{ const b=e.target.closest("[data-k]"); if(b){ press(b.dataset.k); b.blur(); } });
+document.addEventListener("keydown", e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey||e.repeat) return;
+  if($("gate").classList.contains("on")) return;
+  if(e.key==="Enter"){ e.preventDefault(); press("ENTER"); }
+  else if(e.key==="Backspace") press("BACK");
+  else { const k = norm(e.key); if(/^[A-Z]$/.test(k)) press(k); }
+});
+window.addEventListener("resize", ()=>{ if(!done) sizeTiles(N, ROWS); });
+
+buildBoard(); buildKb(); initHints();
+
+const TESTE = location.search.includes("teste") || location.hash==="#teste";
+const ENSAIO = location.search.includes("ensaio");
+if(location.search.includes("videos")){ done = true; showSaved(); }
+else if(TESTE){ done = true; showStats(true); }
+else {
+  // portão: ELE toca "jogar", libera câmera + microfone, confere que está gravando, e só então entrega o celular
+  $("gate").classList.add("on");
+  let starting = false;
+  // prontidão (só ele vê, no portão)
+  const rd = { "câmera":"…", "microfone":"…" };
+  if(CONFIG.musica.tocarNoApp) rd["música"] = "…";
+  if(CONFIG.musica.versoes) rd["mixador"] = "…";
+  if(CONFIG.gravar) rd["montador"] = "…";
+  const ready = (k, v) => { if(k) rd[k] = v; $("gateready").textContent = Object.entries(rd).map(([n,s]) => n + " " + s).join(" · "); };
+  const blobOf = u => fetch(u).then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.blob(); });
+  const begin = () => {
+    $("gate").classList.remove("on");
+    keepAwake();
+    try{ history.pushState(null, "", location.href); addEventListener("popstate", ()=>history.pushState(null, "", location.href)); }catch(e){}
+    if(location.search.includes("rapido")){ done = true; showStats(true); } // ?rapido = pula o jogo (teste rápido do final); ?ensaio = jogo completo + medidor de fps
+  };
+  $("gatebtn").addEventListener("click", async ()=>{
+    if(starting) return; starting = true;
+    unlockMusic();
+    try{ navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(()=>{}); }catch(e){}
+    ready();
+    // baixa a música inteira (blob): a música ao vivo não depende mais da rede
+    const musP = !CONFIG.musica.tocarNoApp ? Promise.resolve() : blobOf(CONFIG.musica.arquivo).then(b => {
+      musBlob = b;
+      const swap = () => { if(!musT0){ bgm.src = URL.createObjectURL(b); bgm.load(); } };   // o grafo do Web Audio continua ligado ao mesmo <audio>
+      return (unlockP || Promise.resolve()).then(swap, swap);   // troca só depois do play de desbloqueio terminar
+    }).then(() => ready("música","✓"), () => ready("música","✗"));
+    // pré-carrega o mixador de música (ffmpeg) inteiro, pra gerar as versões com música mesmo sem internet
+    if(CONFIG.musica.versoes) ffPre = Promise.all([blobOf("ff/ffmpeg-core.js"), blobOf("ff/ffmpeg-core.wasm")]).then(([j, w]) => {
+      ffJsUrl = URL.createObjectURL(new Blob([j], { type:"text/javascript" }));
+      ffWasm = w;
+      ready("mixador","✓");
+    }).catch(() => ready("mixador","✗"));
+    // pré-carrega o montador de vídeos (mediabunny, 700 KB): depois funciona mesmo sem internet
+    const mbReady = CONFIG.gravar ? loadMB().then(() => ready("montador","✓"), () => ready("montador","✗")) : null;
+    const fontsP = document.fonts ? Promise.all(["400 16px Mitr","600 16px Mitr","600 20px Fraunces","italic 400 20px Fraunces"].map(f => document.fonts.load(f).catch(()=>{}))).then(()=>document.fonts.ready).catch(()=>{}) : null;   // baixa já as 4 fontes (a revelação usa Fraunces)
+    const espera = Promise.race([Promise.all([musP, fontsP, mbReady]), sleep(25000)]);   // no máximo ~25s
+    keepAwake();
+    let ok = false;
+    try{ ok = await startCamera(); }catch(e){ recErr = e.name + ": " + e.message; }
+    ready("câmera", ok && camStream && camStream.getVideoTracks().length ? "✓" : "✗");
+    ready("microfone", ok && camStream && camStream.getAudioTracks().length ? "✓" : "✗");
+    const gravando = ok && recC && recC.state === "recording";
+    if(gravando || !CONFIG.gravar){
+      await espera; if(CONFIG.musica.tocarNoApp && rd["música"] === "…") ready("música","✗");   // garante a música no celular antes de entregar (se não der, segue)
+      if(gravando && !camStream.getAudioTracks().length){
+        $("gateerr").textContent = "⚠ gravando SEM som (microfone bloqueado). toque em jogar pra seguir assim.";
+        $("gateerr").style.display = "block"; $("gatebtn").onclick = begin; return;
+      }
+      return begin();
+    }
+    $("gateerr").textContent = "⚠ a gravação não iniciou" + (recErr ? " (" + recErr + ")" : "") +
+      ". Confira em Ajustes › Safari › Câmera e Microfone = Permitir, recarregue a página e tente de novo.";
+    $("gateerr").style.display = "block";
+    $("gateskip").style.display = "inline-block";
+    $("gatebtn").textContent = "↻ tentar de novo";
+    $("gatebtn").onclick = () => location.reload();
+  }, { once:true });
+  $("gateskip").addEventListener("click", begin);
+}
+}
+</script>
+</body>
+</html>
